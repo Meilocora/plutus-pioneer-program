@@ -7,20 +7,50 @@
 
 module Homework2 where
 
-import           Plutus.V2.Ledger.Api (BuiltinData, POSIXTime, PubKeyHash,
-                                       ScriptContext, Validator,
-                                       mkValidatorScript)
-import           PlutusTx             (applyCode, compile, liftCode)
-import           PlutusTx.Prelude     (Bool (False), (.))
-import           Utilities            (wrapValidator)
+import           Data.Maybe                (fromJust)
+import           Plutus.V1.Ledger.Interval (contains)
+import           Plutus.V2.Ledger.Api      (BuiltinData, POSIXTime, PubKeyHash,
+                                            ScriptContext (scriptContextTxInfo),
+                                            TxInfo (txInfoValidRange),
+                                            Validator, from, mkValidatorScript)
+import           Plutus.V2.Ledger.Contexts (txSignedBy)
+import           PlutusTx                  (compile, unstableMakeIsData, applyCode, liftCode, makeLift)
+import           PlutusTx.Prelude          (Bool, traceIfFalse, ($), (&&), (.))
+import           Prelude                   (IO, String)
+import           Utilities                 (Network, posixTimeFromIso8601,
+                                            printDataToJSON, wrapValidator,
+                                            validatorAddressBech32,
+                                            writeValidatorToFile)
 
 ---------------------------------------------------------------------------------------------------
 ----------------------------------- ON-CHAIN / VALIDATOR ------------------------------------------
 
+{-data VestingParams = VestingParams
+    { beneficiary :: PubKeyHash
+    }
+makeLift ''VestingParams 
+
+data VestingDatum = VestingDatum
+    { deadline    :: POSIXTime
+    }
+unstableMakeIsData ''VestingDatum -}
+
 {-# INLINABLE mkParameterizedVestingValidator #-}
 -- This should validate if the transaction has a signature from the parameterized beneficiary and the deadline has passed.
 mkParameterizedVestingValidator :: PubKeyHash -> POSIXTime -> () -> ScriptContext -> Bool
-mkParameterizedVestingValidator _beneficiary _deadline () _ctx = False -- FIX ME!
+mkParameterizedVestingValidator beneficiary deadline () ctx =
+    traceIfFalse "beneficiary's signature missing" signedByBeneficiary &&
+    traceIfFalse "deadline not reached" deadlineReached
+  where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    signedByBeneficiary :: Bool
+    signedByBeneficiary = txSignedBy info $ beneficiary
+
+    deadlineReached :: Bool
+    deadlineReached = contains (from $ deadline) $ txInfoValidRange info
+
 
 {-# INLINABLE  mkWrappedParameterizedVestingValidator #-}
 mkWrappedParameterizedVestingValidator :: PubKeyHash -> BuiltinData -> BuiltinData -> BuiltinData -> ()

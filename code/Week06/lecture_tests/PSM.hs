@@ -17,14 +17,15 @@ import           Plutus.V1.Ledger.Api (PubKeyHash)
 
 main :: IO ()
 main = defaultMain $ do
-    testGroup
-      "Test simple user transactions"
-      [ good "Simple spend" simpleSpend
-      , bad  "Not enough funds" notEnoughFunds
+    testGroup   -- give a name to a list of tests
+      "Test simple user transactions" -- name of the testgroup
+      [ good "Simple spend" simpleSpend         -- test 1... function that returns a "Run Bool"
+      , bad  "Not enough funds" notEnoughFunds  -- test 2
       ]
       where
-        bad msg = good msg . mustFail
+        bad msg = good msg . mustFail  -- mustFail... logs an error if everything succeeds, so if the tx fails there will be no error
         good = testNoErrors (adaValue 10_000_000) defaultBabbage
+                              -- Value            Mockconfig
 
 ---------------------------------------------------------------------------------------------------
 ------------------------------------- HELPER FUNCTIONS --------------------------------------------
@@ -32,6 +33,7 @@ main = defaultMain $ do
 -- Set many users at once
 setupUsers :: Run [PubKeyHash]
 setupUsers = replicateM 3 $ newUser $ ada (Lovelace 1000)
+                         -- newUser :: Value -> Run PubKeyHash
 
 ---------------------------------------------------------------------------------------------------
 ------------------------------------- TESTING TRANSACTIONS ----------------------------------------
@@ -55,3 +57,7 @@ notEnoughFunds = do
   let [u1, u2, _u3] = users         -- Give names to individual users
   sendValue u1 (adaValue 10000) u2  -- Send 10.000 lovelaces from user 1 to user 2
   noErrors  -- Check that all TXs were accepted without errors (should fail)
+  -- no:
+    -- isOk <- noErrors
+    -- return isOk
+  -- needed, because in a do block the last line is automatically returned!

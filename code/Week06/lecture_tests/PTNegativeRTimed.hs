@@ -86,19 +86,24 @@ consumingTx dl redeemer usr ref val =
 
 ---------------------------------------------------------------------------------------------------
 ------------------------------------- TESTING PROPERTIES ------------------------------------------
-
+-- Quickcheck will generate many arbitrary values, that will be filtered with the following boundaries
 
 -- All redeemers fail before deadline 
 prop_Before_Fails :: POSIXTime -> Integer -> Property
 prop_Before_Fails d r = (d > 1001) ==> runChecks False d r
+                      -- deadline is always bigger than 1000, so it must fail  (because utxo will be spent at 1000)
 
 -- Positive redeemer always fail after deadline
 prop_PositiveAfter_Fails :: POSIXTime -> Integer -> Property
 prop_PositiveAfter_Fails d r = (r > 0 && d < 999) ==> runChecks False d r
+                             -- redeemer must be positive
+                                      -- deadline must be before 999 (because utxo will be spent at 1000)
 
 -- Negative redeemers always succeed after deadline
 prop_NegativeAfter_Succeeds :: POSIXTime -> Integer -> Property
 prop_NegativeAfter_Succeeds d r = (r < 0 && d < 999) ==> runChecks True d r
+                             -- redeemer must be negative
+                                      -- deadline must be before 999 (because utxo will be spent at 1000)
 
 
 ---------------------------------------------------------------------------------------------------
@@ -109,6 +114,7 @@ prop_NegativeAfter_Succeeds d r = (r < 0 && d < 999) ==> runChecks True d r
 runChecks :: Bool -> POSIXTime -> Integer -> Property
 runChecks shouldConsume deadline redeemer = 
   collect (redeemer, getPOSIXTime deadline) $ monadic property check
+  -- collect to show the values that were generated for the testing afterwards
     where check = do
             balancesMatch <- run $ testValues shouldConsume deadline redeemer
             assert balancesMatch
@@ -136,3 +142,7 @@ testValues shouldConsume datum redeemer = do
   -- CHECK THAT FINAL BALANCES MATCH EXPECTED BALANCES
   [v1, v2] <- mapM valueAt [u1, u2]               -- Get final balances
   return $ v1 == adaValue 900 && v2 == v2Expected -- Check if final balances match expected balances
+
+-- use with:
+-- cd code/Week06
+-- cabal test week06-PTNegativeRTimed

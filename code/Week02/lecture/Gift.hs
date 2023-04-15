@@ -17,11 +17,14 @@ import           Utilities            (writeValidatorToFile)
 --                    Datum         Redeemer     ScriptContext
 mkGiftValidator :: BuiltinData -> BuiltinData -> BuiltinData -> ()
 mkGiftValidator _ _ _ = ()
-{-# INLINABLE mkGiftValidator #-}
+{-# INLINABLE mkGiftValidator #-}   {- to be able to put the function into the Oxford-Brackets -}
 
 validator :: PlutusV2.Validator
 validator = PlutusV2.mkValidatorScript $$(PlutusTx.compile [|| mkGiftValidator ||])
-
+                                                            -- Oxford-Brackets || take a function an give the source code of it
+                                        -- compiles the code to plutus core as a syntax
+                                    {-- $$ turns the syntax into source code -}
+            -- produces a validator
 ---------------------------------------------------------------------------------------------------
 ------------------------------------- HELPER FUNCTIONS --------------------------------------------
 

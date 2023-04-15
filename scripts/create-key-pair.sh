@@ -33,3 +33,6 @@ cardano-cli address build --payment-verification-key-file "$vkey" --testnet-magi
 echo "wrote verification key to: $vkey"
 echo "wrote signing key to: $skey"
 echo "wrote address to: $addr"
+
+# use like this:
+# scripts/create-key-pair.sh eric

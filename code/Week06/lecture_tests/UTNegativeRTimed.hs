@@ -5,7 +5,7 @@
 module Main where
 
 import           Control.Monad        (mapM, replicateM, unless)
-import qualified NegativeRTimed       as OnChain
+import qualified NegativeRTimed       as OnChain  
 import           Plutus.Model         (Ada (Lovelace), DatumMode (HashDatum),
                                        Run, Tx, TypedValidator (TypedValidator),
                                        UserSpend, ada, adaValue, currentTimeRad,
@@ -42,6 +42,7 @@ main = defaultMain $ do
 ---------------------------------------------------------------------------------------------------
 ------------------------------------- HELPER FUNCTIONS --------------------------------------------
 
+-- always consume the utxo 1000 after user1 creates the tx 
 waitBeforeConsumingTx :: POSIXTime
 waitBeforeConsumingTx = 1000
 
@@ -56,17 +57,18 @@ valScript = TypedValidator $ toV2 OnChain.validator
 -- Create transaction that spends "usp" to lock "val" in "valScript"
 lockingTx :: POSIXTime -> UserSpend -> Value -> Tx
 lockingTx dl usp val =
-  mconcat
-    [ userSpend usp
-    , payToScript valScript (HashDatum (OnChain.MkCustomDatum dl)) val
+  mconcat   -- concatinates multiple monoid values via a given function  (here it concatinates two transactions into one)
+    [ userSpend usp     -- finds a utxo for the transaction
+    , payToScript valScript (HashDatum (OnChain.MkCustomDatum dl)) val    -- makes a transaction with the datum
     ]
 
 -- Create transaction that spends "ref" to unlock "val" from the "valScript" validator
 consumingTx :: POSIXTime -> Integer -> PubKeyHash -> TxOutRef -> Value -> Tx
 consumingTx dl redeemer usr ref val =
+            -- redeemer and reference of utxo, because a specific utxo must be spent
   mconcat
-    [ spendScript valScript ref (mkI redeemer) (OnChain.MkCustomDatum dl)
-    , payToKey usr val
+    [ spendScript valScript ref (mkI redeemer) (OnChain.MkCustomDatum dl) -- spend the script
+    , payToKey usr val    -- pay a value to the user
     ]
 
 ---------------------------------------------------------------------------------------------------
@@ -74,6 +76,7 @@ consumingTx dl redeemer usr ref val =
 
 -- Function to test if both creating and consuming script UTxOs works properly
 testScript :: POSIXTime -> Integer -> Run ()
+            -- datum    -> Redeemer -> run test
 testScript d r = do
   -- SETUP USERS
   [u1, u2] <- setupUsers
@@ -84,12 +87,14 @@ testScript d r = do
   -- WAIT FOR A BIT
   waitUntil waitBeforeConsumingTx
   -- USER 2 TAKES "val" FROM VALIDATOR
-  utxos <- utxoAt valScript                 -- Query blockchain to get all UTxOs at script
+  utxos <- utxoAt valScript                 -- Query blockchain to get all UTxOs at script address
   let [(ref, out)] = utxos                  -- We know there is only one UTXO (the one we created before)
-  ct <- currentTimeRad 100                  -- Create time interval with equal radius around current time
+  ct <- currentTimeRad 100                  -- Create time interval with equal radius around current time [current time is now 900 - 1100]
   tx <- validateIn ct $ consumingTx d r u2 ref (txOutValue out)  -- Build Tx
+    -- to specifiy that the tx is being validated in the the currentTimeRad (because there is a deadline inside the datum)
+                                              -- get the value of the utxo we want to consume
   submitTx u2 tx                            -- User 2 submits "consumingTx" transaction
   -- CHECK THAT FINAL BALANCES MATCH EXPECTED BALANCES
   [v1, v2] <- mapM valueAt [u1, u2]                     -- Get final balances of both users
   unless (v1 == adaValue 900 && v2 == adaValue 1100) $  -- Check if final balances match expected balances
-    logError "Final balances are incorrect"
+    logError "Final balances are incorrect"   -- error when anything is not as mentioned

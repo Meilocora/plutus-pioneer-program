@@ -24,11 +24,11 @@ async function sendToScript(
     userPrivKey: L.PrivateKey,
     dtm: NegativeRTimedDatum
   ): Promise<L.TxHash> {
-  lucid.selectWalletFromPrivateKey(userPrivKey);
-  const tx = await lucid
-    .newTx()
-    .payToContract(negativeRTimedAddr, { inline: L.Data.to<NegativeRTimedDatum>(dtm,NegativeRTimedDatum) }, { lovelace: 10000000n })
-    .complete();
+  lucid.selectWalletFromPrivateKey(userPrivKey);      // set a new wallet
+  const tx = await lucid      
+    .newTx()                                          // create a new tx
+    .payToContract(negativeRTimedAddr, { inline: L.Data.to<NegativeRTimedDatum>(dtm,NegativeRTimedDatum) }, { lovelace: 10000000n })  // send an inline datum + 10 ada to the script
+    .complete();  
   const signedTx = await tx.sign().complete();
   const txHash = await signedTx.submit();
   return txHash
@@ -42,26 +42,27 @@ async function grabFunds(
     dtm: NegativeRTimedDatum,
     r: NegativeRTimedRedeemer
   ): Promise<L.TxHash> {
-  lucid.selectWalletFromPrivateKey(userPrivKey);
-  const rdm: L.Redeemer = L.Data.to<NegativeRTimedRedeemer>(r,NegativeRTimedRedeemer);
-  const utxoAtScript: L.UTxO[] = await lucid.utxosAt(negativeRTimedAddr);
-  const ourUTxO: L.UTxO[] = utxoAtScript.filter((utxo) => utxo.datum == L.Data.to<NegativeRTimedDatum>(dtm,NegativeRTimedDatum));
+  lucid.selectWalletFromPrivateKey(userPrivKey);  // select wallet
+  const rdm: L.Redeemer = L.Data.to<NegativeRTimedRedeemer>(r,NegativeRTimedRedeemer);  // convert the redeemer to cbor inverted string
+  const utxoAtScript: L.UTxO[] = await lucid.utxosAt(negativeRTimedAddr); // fetches all utxos at the script address inside the mocked blockchain
+  const ourUTxO: L.UTxO[] = utxoAtScript.filter((utxo) => utxo.datum == L.Data.to<NegativeRTimedDatum>(dtm,NegativeRTimedDatum)); // filter the utxos for the wanted datum
   
-  if (ourUTxO && ourUTxO.length > 0) {
+  if (ourUTxO && ourUTxO.length > 0) {    // when there is any utxo left
       const tx = await lucid
           .newTx()
-          .collectFrom(ourUTxO, rdm)
-          .attachSpendingValidator(negativeRTimedValidator)
-          .validFrom(emulator.now())
+          .collectFrom(ourUTxO, rdm)    // claim from all utxos that are left
+          .attachSpendingValidator(negativeRTimedValidator) // attach validator
+          .validFrom(emulator.now())    // sets the posix time for the validator
           .complete();
 
       const signedTx = await tx.sign().complete();
       const txHash = await signedTx.submit();
       return txHash
   }
-  else throw new Error("UTxO's Expected!")
+  else throw new Error("UTxO's Expected!")  // when no utxos are left
 }
 
+// function to run a test                                                   // n ... slotnumber when the grab should be initiated
 async function runTest(dtm: NegativeRTimedDatum, r: NegativeRTimedRedeemer, n: number) {
   // setup a new privateKey that we can use for testing.
   const user1: L.PrivateKey = L.generatePrivateKey();
@@ -72,7 +73,7 @@ async function runTest(dtm: NegativeRTimedDatum, r: NegativeRTimedRedeemer, n: n
 
   // Setup the emulator and give our testing wallet 10000 ada. These funds get added to the genesis block.
   const emulator = new L.Emulator([{ address: address1, assets: { lovelace: 10000000000n } }, { address: address2, assets: { lovelace: 10000000000n}}]);
-  const lucid = await L.Lucid.new(emulator);
+  const lucid = await L.Lucid.new(emulator);   // initiate lucid with the emulator we just defined
 
   // gets added to the first block in the emulator
   await sendToScript(lucid,user1,dtm);
@@ -85,12 +86,19 @@ async function runTest(dtm: NegativeRTimedDatum, r: NegativeRTimedRedeemer, n: n
 
   emulator.awaitBlock(10);
 
-  //console.log(await emulator.getUtxos(address2));
+  //console.log(await emulator.getUtxos(address2));   // fetches the balance of wallet 2 after the end of the emulation
 }
-//await runTest({deadline:BigInt(Date.now()+20000*5+1000)},-42n,5*20);
+//await runTest({deadline:BigInt(Date.now()+20000*5+1000)},-42n,5*20+1);
+                                          // = 20 sec*5 + 1 sec = 5 blocks + 1 slot
+                                                          // redeemer = -42
+                                                              // call the grab function at 5 blocks + 1 slot
+// to run a test up to here:
+  // uncomment line 89 and 91
+  // deno run ./lecture_tests/NegativeRTimed.ts
 
 // UNIT tests
 
+  // function that expects tests to succeed
 function testSucceed(
   str: string, // the string to display of the test
   r: bigint,   // the redeemer number
@@ -100,6 +108,7 @@ function testSucceed(
   Deno.test(str, async () => {await runTest({deadline:BigInt(Date.now())+d},r,n)})
 }
 
+  // function that expects tests to fail
 async function testFails(
   str: string, // the string to display of the test
   r: bigint,   // the redeemer number
@@ -107,13 +116,13 @@ async function testFails(
   n:number     // the number of slots user 2 waits
 ) {
   Deno.test(str,async () => {
-    let errorThrown = false;
+    let errorThrown = false;  // set Boolean function "erroThrown" to fals 
     try {
       await runTest({deadline:BigInt(Date.now())+d},r,n);
     } catch (error) {
-      errorThrown = true;
+      errorThrown = true; // when there is an error the function "errorThrown" is set to true... happens, when the test fails as expected
     }
-    assert(
+    assert(   // we assert that "errorThrown" is true; but if not the error massage will be displayed
       errorThrown,
       "Expected to throw an error, but it completed successfully"
     );
@@ -132,12 +141,20 @@ testFails("UT: User 1 locks and user 2 takes with R = -42 before dealine; fails"
 testFails("UT: User 1 locks and user 2 takes with R = 0 before dealine; fails",-0n,BigInt(1000*100),80);
 // deadline is slot 100 and user 2 claims at slot 80
 testFails("UT: User 1 locks and user 2 takes with R = 42 before dealine; fails",42n,BigInt(1000*100),80);
+  // to run the tests:
+  // deno test -A lecture_tests/NegativeRTimed.ts
+
 
 // Property test
 // set up a fixed deadline at slot 100
 const dl: number = 100*1000;
+  // define how the values used for the test should be created
 // create only random 256 bit negative big integers for r.
 const negativeBigIntArbitrary = fc.bigIntN(256).filter((n:bigint) => n <= 0n);
+                            // fc ... from fast-check (line 3)
+                                  // bigIntN here creates a arbitrary Integer with the maximum size of 256 bits
+                                                // the createt Integer will be filtered
+                                                                  // only Integers smaller than zero will be used
 // create only random 256 bit positive big integers for r.
 const positiveBigIntArbitrary = fc.bigIntN(256).filter((n:bigint) => n > 0n); 
 // create only random integers that represent claiming after the deadline
@@ -145,8 +162,10 @@ const afterDeadlineWaits = fc.integer().filter((n: number) => n >= dl);
 // create only random integers that represent claiming before the deadline
 const beforeDeadlineWaits = fc.integer().filter((n: number) => n < dl);
 
+// use the deno test-environment
+          // name of the test
 Deno.test("PT: Negative redeemer after deadline always succeeds", () => {
-  fc.assert(fc.asyncProperty(
+  fc.assert(fc.asyncProperty(     // assert function expects two inputs: Property + Number of runs
     negativeBigIntArbitrary, afterDeadlineWaits, async (r: bigint,n: number) => {
       try {
         await runTest({deadline:BigInt(Date.now()+dl)},r,n);
@@ -161,7 +180,7 @@ Deno.test("PT: Negative redeemer after deadline always succeeds", () => {
 Deno.test("PT: Positive redeemer after deadline always fails", () => {
   fc.assert(fc.asyncProperty(
     positiveBigIntArbitrary, afterDeadlineWaits,async (r:bigint, n: number) => {
-      let errorThrown = false;
+      let errorThrown = false;    //because it is expected to fail
       try {
         await runTest({deadline:BigInt(Date.now()+dl)},r,n);
       } catch (error) {
@@ -175,6 +194,7 @@ Deno.test("PT: Positive redeemer after deadline always fails", () => {
 Deno.test("PT: Anything before the deadline always fails", () => {
   fc.assert(fc.asyncProperty(
     fc.bigIntN(256), beforeDeadlineWaits,async (r:bigint, n: number) => {
+      // no filters for bigIntN, because we want all numbers for the redeemer
       let errorThrown = false;
       try {
         await runTest({deadline:BigInt(Date.now()+dl)},r,n);

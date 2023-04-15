@@ -8,8 +8,8 @@
 module Homework1 where
 
 import           Data.Maybe                (fromJust)
-import           Plutus.V1.Ledger.Interval (contains, to)
-import           Plutus.V2.Ledger.Api      (BuiltinData, POSIXTime,
+import           Plutus.V1.Ledger.Interval (contains, to,)
+import           Plutus.V2.Ledger.Api      (BuiltinData, POSIXTime, toBuiltin,
                                             POSIXTimeRange, PubKeyHash,
                                             ScriptContext (scriptContextTxInfo),
                                             TxInfo (txInfoValidRange),
@@ -18,11 +18,11 @@ import           Plutus.V2.Ledger.Contexts (txSignedBy)
 import           PlutusTx                  (compile, unstableMakeIsData)
 import           PlutusTx.Prelude          (Bool, traceIfFalse, ($), (&&), (+),
                                             (||))
-import           Prelude                   (IO, String)
+import           Prelude                   (IO, String, FilePath)
 import           Utilities                 (Network, posixTimeFromIso8601,
-                                            printDataToJSON,
+                                            printDataToJSON, bytesFromHex,
                                             validatorAddressBech32,
-                                            wrapValidator, writeValidatorToFile)
+                                            wrapValidator, writeValidatorToFile, writeDataToFile)
 
 ---------------------------------------------------------------------------------------------------
 ------------------------------------------ PROMPT -------------------------------------------------
@@ -58,11 +58,11 @@ mkMisteryValidator dat () ctx =
         txValidRange :: POSIXTimeRange
         txValidRange  = txInfoValidRange txInfo
 
-        checkCondition1 :: Bool
+        checkCondition1 :: Bool     -- signed by beneficiray 1 & deadline not reached
         checkCondition1 = txSignedBy txInfo (beneficiary1 dat) &&
                           contains (to (deadline dat)) txValidRange
 
-        checkCondition2 :: Bool
+        checkCondition2 :: Bool     -- signed by beneficiary 2 & deadline reached
         checkCondition2 = txSignedBy txInfo (beneficiary2 dat) &&
                           contains (from (1 + deadline dat)) txValidRange
 
@@ -88,3 +88,17 @@ printMisteryDatumJSON pkh1 pkh2 time = printDataToJSON $ MisteryDatum
     , beneficiary2 = pkh2
     , deadline    = fromJust $ posixTimeFromIso8601 time
     }
+
+{-
+Try and print the datum as a json, so the script can use it as an intput for the transaction 
+
+pkh1 :: PubKeyHash
+pkh1 = "606285429751e57aa07ab51e0ce64f20cdfda2b0d165b89a2fea77a634"
+
+pkh2 :: PubKeyHash
+pkh2 = "60d8f1e340f84f4495a636fb691fc322e08da0672c9bdd063fa8e00187"
+
+saveDatum :: PubKeyHash -> PubKeyHash -> String -> FilePath -> a -> IO ()
+saveDatum pkh11 pkh22 time = writeDataToFile "./assets/datum.plutus" printMisteryDatumJSON (pkh11 pkh22 time)
+
+-}

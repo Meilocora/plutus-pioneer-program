@@ -1,22 +1,43 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module Homework2 where
 
-import           Plutus.V2.Ledger.Api (BuiltinData, MintingPolicy,
-                                       ScriptContext, TokenName, TxOutRef,
-                                       mkMintingPolicyScript)
+import           Plutus.V2.Ledger.Api 
+import           Plutus.V1.Ledger.Value (flattenValue)
+import           Plutus.V2.Ledger.Contexts (ownCurrencySymbol)
 import qualified PlutusTx
-import           PlutusTx.Prelude     (Bool (False), ($), (.))
-import           Utilities            (wrapPolicy)
+import           PlutusTx.Builtins.Internal (emptyByteString)
+import           PlutusTx.Prelude       (Bool (..), ($), (.), (&&), 
+                                         (==), any, traceIfFalse)
+import           Utilities              (wrapPolicy)
+
+{-# INLINABLE tn #-}
+tn :: TokenName
+tn =  TokenName emptyByteString -- make tn become always an empty ByteString
 
 {-# INLINABLE mkEmptyNFTPolicy #-}
 -- Minting policy for an NFT, where the minting transaction must consume the given UTxO as input
 -- and where the TokenName will be the empty ByteString.
 mkEmptyNFTPolicy :: TxOutRef -> () -> ScriptContext -> Bool
-mkEmptyNFTPolicy _oref () _ctx = False -- FIX ME!
+mkEmptyNFTPolicy oref () ctx =  traceIfFalse "UTxO not consumed"   hasUTxO &&
+                                traceIfFalse "wrong amount minted" checkMintedAmount               
+ where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    hasUTxO :: Bool
+    hasUTxO = any (\i -> txInInfoOutRef i == oref) $ txInfoInputs info -- every input of the tx is being checked for being the given utxo
+
+    checkMintedAmount :: Bool
+                            -- converts the nested lists into one list with exactly 3 values (CurrencySymbol, Tokenname, Amount)
+    checkMintedAmount = case Plutus.V1.Ledger.Value.flattenValue (txInfoMint info) of  
+        [(cs, tn', amt)] -> cs == ownCurrencySymbol ctx && tn' == tn && amt == 1 
+        _                -> False
 
 {-# INLINABLE mkWrappedEmptyNFTPolicy #-}
 mkWrappedEmptyNFTPolicy :: TxOutRef -> BuiltinData -> BuiltinData -> ()
@@ -24,3 +45,5 @@ mkWrappedEmptyNFTPolicy = wrapPolicy . mkEmptyNFTPolicy
 
 nftPolicy :: TxOutRef -> TokenName -> MintingPolicy
 nftPolicy oref tn = mkMintingPolicyScript $ $$(PlutusTx.compile [|| mkWrappedEmptyNFTPolicy ||]) `PlutusTx.applyCode` PlutusTx.liftCode oref
+
+
