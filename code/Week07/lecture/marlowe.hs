@@ -18,48 +18,50 @@ contract alice bob charlie deposit =
   where
     f :: Party -> Party -> Case
     f x y =
-        Case
-            (Deposit
-                x
-                x
-                ada
-                deposit
-            )
-            (When
-                [Case
-                    (Deposit
-                        y
-                        y
-                        ada
-                        deposit
-                    )
-                    (When
-                        [Case
-                            (Choice
-                                (choiceId charlie)
-                                [Bound 1 2]
-                            )
-                            (If
-                                (ValueEQ
-                                    (ChoiceValue $ choiceId charlie)
-                                    (Constant 1)
+        When
+            [Case
+                (Deposit
+                    x
+                    x
+                    ada
+                    deposit
+                )
+                (When
+                    [Case
+                        (Deposit
+                            y
+                            y
+                            ada
+                            deposit
+                        )
+                        (When
+                            [Case
+                                (Choice
+                                    (choiceId charlie)
+                                    [Bound 1 2]
                                 )
-                                (Pay
-                                    bob
-                                    (Account alice)
-                                    ada
-                                    deposit
-                                    Close
-                                )
-                                (Pay
-                                    alice
-                                    (Account bob)
-                                    ada
-                                    deposit
-                                    Close
-                                )
-                            )]
-                        30 Close
-                    )]
-                20 Close
-            )
+                                (If
+                                    (ValueEQ
+                                        (ChoiceValue $ choiceId charlie)
+                                        (Constant 1)
+                                    )
+                                    (Pay
+                                        bob
+                                        (Account alice)
+                                        ada
+                                        deposit
+                                        Close
+                                    )
+                                    (Pay
+                                        alice
+                                        (Account bob)
+                                        ada
+                                        deposit
+                                        Close
+                                    )
+                                )]
+                            30 Close
+                        )]
+                    20 Close
+                )]
+            10 close
