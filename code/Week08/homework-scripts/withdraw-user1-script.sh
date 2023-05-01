@@ -32,7 +32,7 @@ cardano-cli transaction build \
     --tx-in-collateral $txin \
     --tx-out "$(cat /workspace/cardano-private-testnet-setup/private-testnet/addresses/payment2.addr)+$amt2 lovelace" \
     --withdrawal "$(cat $tmp/user1-script-stake.addr)+$amt1" \
-    --withdrawal-script-file /workspace/code/Week08/assets/staking.plutus \
+    --withdrawal-script-file /workspace/code/Week08/assets/homework.plutus \
     --withdrawal-redeemer-file /workspace/code/Week08/assets/unit.json \
     --protocol-params-file $pp
 

@@ -30,6 +30,7 @@ HINT: If you get stuck, take a look at Week03's lecture
 ----------------------------------- ON-CHAIN / VALIDATOR ------------------------------------------
 
 {-# INLINABLE mkParameterizedMisteryValidator #-}
+                                -- Parameter  -> Datum     -> Redeemer -> ctx     -> Bool
 mkParameterizedMisteryValidator :: PubKeyHash -> POSIXTime -> () -> ScriptContext -> Bool
 mkParameterizedMisteryValidator beneficiary deadline () ctx =
     traceIfFalse "not signed by beneficiary" checkSig &&

@@ -41,7 +41,7 @@ cardano-cli transaction sign \
     --testnet-magic 42 \
     --tx-body-file $body \
     --out-file $signed \
-    --signing-key-file /workspace/cardano-private-testnet-setup/private-testnet/stake-delegator-keys/payment1.skey
+    --signing-key-file /workspace/cardano-private-testnet-setup/private-testnet/stake-delegator-keys/payment2.skey
 
 # submit the transaction
 cardano-cli transaction submit \

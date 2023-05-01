@@ -1,0 +1,49 @@
+Terminal 1:
+cd code/Week04
+cabal repl
+
+# Defining public key hashes
+:set -XOverloadedStrings 
+pkh2 = "6285429751e57aa07ab51e0ce64f20cdfda2b0d165b89a2fea77a634"
+pkh3 = "d8f1e340f84f4495a636fb691fc322e08da0672c9bdd063fa8e00187"
+
+# Creating parameterized plutus script with franny.pkh
+Homework2.saveVal pkh3
+
+# Creating vesting-h1-1-datum.json for homework 1 (deadline must be reached)
+Homework1.printMisteryDatumJSON pkh2 pkh3 "2023-05-01T13:00:00.0Z"
+-> copy into "vesting-h1-1-datum.json"
+
+# Creating vesting-h1-2-datum.json for homework 1 (deadline must not be reached)
+Homework1.printMisteryDatumJSON pkh2 pkh3 "2023-05-02T10:20:30.0Z"
+-> copy into "vesting-h1-2-datum.json"
+
+# Creating vesting-h2-datum.json for homework 2 (deadline must be reached)
+import Utilities 
+import Data.Maybe 
+printDataToJSON $ fromJust $ posixTimeFromIso8601 "2023-05-01T13:00:00.0Z"
+-> copy into "vesting-h2-datum.json"
+
+# Testing homework 1 
+==>Signed by Franny and deadline reached <==
+    Terminal 2:
+    scripts/query-address.sh $(cat keys/elsa.addr)
+        Terminal 3:
+        cd code/Week04/scripts
+        ./vest-funds.sh elsa <utxo>#0 mistery1.plutus vesting-h1-1-datum.json 3210000
+    scripts/query-address.sh $(cat keys/franny.addr)
+        ./collect-gift-h1-user2.sh franny <utxo for collateral>#0 <utxo from tx>#0 16288210
+
+==>Signed by Eric and deadline not reached <==
+    scripts/query-address.sh $(cat keys/elsa.addr)
+        ./vest-funds.sh elsa <utxo>#0 mistery1.plutus vesting-h1-2-datum.json 3210000
+    scripts/query-address.sh $(cat keys/eric.addr)
+./collect-gift-h1-user1.sh eric <utxo for collateral>#0 <utxo from tx>#0 16288210
+
+
+# Testing homework 2
+==>Signed by Franny and deadline reached <==
+    scripts/query-address.sh $(cat keys/elsa.addr)
+        ./vest-funds.sh elsa <utxo>#0 parameterized-Mistery.plutus vesting-h2-datum.json 3210000
+    scripts/query-address.sh $(cat keys/franny.addr)
+        ./collect-gift-h2.sh franny <utxo for collateral>#0 utxo from tx>#0 16288210

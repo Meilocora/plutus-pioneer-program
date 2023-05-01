@@ -4,7 +4,7 @@ tmp=/workspace/code/Week08/tmp
 txin=$1     # input for the transaction
 echo "txin: $txin"
 
-script=/workspace/code/Week08/assets/staking.plutus     # serialized script
+script=/workspace/code/Week08/assets/homework.plutus     # serialized script
 script_stake_addr=$tmp/user1-script-stake.addr  # write the stake address
 script_payment_addr=$tmp/user1-script.addr  # write the payment address
 registration=$tmp/registration.cert # write the regiftration certificate

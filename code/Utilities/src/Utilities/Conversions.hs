@@ -78,23 +78,34 @@ bytesFromHex = either error id . BS16.decode
 bytesToHex :: BS.ByteString -> BS.ByteString
 bytesToHex = BS16.encode
 
+-- The following functions try to convert a String addres into a plutus address --
+
+-- convert the payment part of the address
 credentialLedgerToPlutus :: Ledger.Credential a StandardCrypto -> Plutus.Credential
+    -- if its a script address:
 credentialLedgerToPlutus (ScriptHashObj (ScriptHash h)) = Plutus.ScriptCredential $ Plutus.ValidatorHash $ toBuiltin $ hashToBytes h
+    -- if its a PubKey address:
 credentialLedgerToPlutus (KeyHashObj (KeyHash h))       = Plutus.PubKeyCredential $ Plutus.PubKeyHash $ toBuiltin $ hashToBytes h
 
+-- convert the staking part of the address
 stakeReferenceLedgerToPlutus :: Ledger.StakeReference StandardCrypto -> Maybe Plutus.StakingCredential
+    -- "base case" when there is a staking address
 stakeReferenceLedgerToPlutus (StakeRefBase x)                                       =
     Just $ StakingHash $ credentialLedgerToPlutus x
+    -- in case of a pointer credential, that points to a specific point of the blockchain (never used)
 stakeReferenceLedgerToPlutus (StakeRefPtr (Ptr (Api.SlotNo x) (TxIx y) (CertIx z))) =
     Just $ StakingPtr (fromIntegral x) (fromIntegral y) (fromIntegral z)
+    -- if the address doesnt use staking (no DCert yet)
 stakeReferenceLedgerToPlutus StakeRefNull                                           =
     Nothing
 
+-- Try to read the String address (only works if it deserializes into a shelley era address)
 tryReadAddress :: String -> Maybe Plutus.Address
-tryReadAddress x = case Api.deserialiseAddress Api.AsAddressAny $ pack x of
+tryReadAddress x = case Api.deserialiseAddress Api.AsAddressAny $ pack x of -- deserialize a String address into a Plutus.Api address
     Nothing                                          -> Nothing
-    Just (Api.AddressByron _)                        -> Nothing
+    Just (Api.AddressByron _)                        -> Nothing     -- Fail because plutus only deals with shelley era addresses
     Just (Api.AddressShelley (ShelleyAddress _ p s)) -> Just Plutus.Address
+                                            -- p ... payment part, s... staking part of the address
         { Plutus.addressCredential        = credentialLedgerToPlutus p
         , Plutus.addressStakingCredential = stakeReferenceLedgerToPlutus s
         }

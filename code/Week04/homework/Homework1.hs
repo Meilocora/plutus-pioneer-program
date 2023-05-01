@@ -47,6 +47,7 @@ data MisteryDatum = MisteryDatum
 unstableMakeIsData ''MisteryDatum
 
 {-# INLINABLE mkMisteryValidator #-}
+                    -- Datum       -> Redeemer -> ctx     -> Bool
 mkMisteryValidator :: MisteryDatum -> () -> ScriptContext -> Bool
 mkMisteryValidator dat () ctx =
     traceIfFalse "Benificiary1 did not sign or to late" checkCondition1 ||
